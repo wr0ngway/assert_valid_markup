@@ -26,8 +26,13 @@ unless something has changed.
     end
 
   # For the ultimate in convenience, use the class-level method to validate a slew of
-  # actions in one line:
+  # actions in one line. Par exemple:
 
     class FooControllerTest < Test::Unit::TestCase
       assert_valid_markup :bar, :baz, :qux
     end
+
+== Credits
+
+Scott Raymond <sco@scottraymond.net>. Released under the MIT license.
+Latest version: http://redgreenblu.com/svn/projects/assert_valid_markup/
