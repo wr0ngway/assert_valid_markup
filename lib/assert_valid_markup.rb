@@ -18,16 +18,21 @@ class Test::Unit::TestCase
   #   end
   #
   def assert_valid_markup(fragment=@response.body)
-    filename = File.join Dir::tmpdir, 'markup.' + MD5.md5(fragment).to_s
     begin
-      response = File.open filename do |f| Marshal.load(f) end
-  	rescue
-  	  response = Net::HTTP.start('validator.w3.org').post2('/check', "fragment=#{CGI.escape(fragment)}&output=xml")
-      File.open filename, 'w+' do |f| Marshal.dump response, f end
-  	end
-  	markup_is_valid = response['x-w3c-validator-status']=='Valid'
-  	message = markup_is_valid ? '' :  XmlSimple.xml_in(response.body)['messages'][0]['msg'].collect{ |m| "Invalid markup: line #{m['line']}: #{CGI.unescapeHTML(m['content'])}" }.join("\n")
-  	assert markup_is_valid, message
+      filename = File.join Dir::tmpdir, 'markup.' + MD5.md5(fragment).to_s
+      begin
+        response = File.open filename do |f| Marshal.load(f) end
+    	rescue
+    	  response = Net::HTTP.start('validator.w3.org').post2('/check', "fragment=#{CGI.escape(fragment)}&output=xml")
+        File.open filename, 'w+' do |f| Marshal.dump response, f end
+    	end
+    	markup_is_valid = response['x-w3c-validator-status']=='Valid'
+    	message = markup_is_valid ? '' :  XmlSimple.xml_in(response.body)['messages'][0]['msg'].collect{ |m| "Invalid markup: line #{m['line']}: #{CGI.unescapeHTML(m['content'])}" }.join("\n")
+    	assert markup_is_valid, message
+    rescue SocketError
+      # if we can't reach the validator service, just let the test pass
+      assert true
+    end
   end
   
   # Class-level method to quickly create validation tests for a bunch of actions at once.
@@ -35,14 +40,17 @@ class Test::Unit::TestCase
   #
   #   assert_valid_markup :bar, :baz, :qux
   #
+  # If you pass :but_first => :something, #something will be called at the beginning of each test case
   def self.assert_valid_markup(*actions)
+    options = actions.find { |i| i.kind_of? Hash }
+    actions.delete_if { |i| i.kind_of? Hash }
     actions.each do |action|
-      class_eval <<-EOF
-        def test_#{action}_valid_markup
-          get :#{action}
-          assert_valid_markup
-        end
-      EOF
+      toeval = "def test_#{action}_valid_markup\n"
+      toeval << "#{options[:but_first].id2name}\n" if options and options[:but_first]
+      toeval << "get :#{action}\n"
+      toeval << "assert_valid_markup\n"
+      toeval << "end\n"
+      class_eval toeval
     end
   end
   
