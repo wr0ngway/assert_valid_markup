@@ -19,7 +19,7 @@ class Test::Unit::TestCase
   #
   def assert_valid_markup(fragment=@response.body)
     begin
-      filename = File.join Dir::tmpdir, 'markup.' + Digest::MD5.md5(fragment).to_s
+      filename = File.join Dir::tmpdir, 'markup.' + Digest::MD5.hexdigest(fragment).to_s
       begin
         response = File.open filename do |f| Marshal.load(f) end
     	rescue
