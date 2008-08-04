@@ -22,9 +22,9 @@ class Test::Unit::TestCase
   #     assert_valid_markup
   #   end
   #
-  def assert_valid_markup(fragment=@response.body)
+  def assert_valid_markup(fragment=@response.body, dtd_validate=true)
     if  @@use_local_validation
-      result = local_validate(fragment) 
+      result = local_validate(fragment, dtd_validate) 
       assert result.empty?, result.collect {|l| l.gsub(/^[^:]*:/, "Invalid markup: line ")}.join("\n")
     else
       begin
@@ -64,7 +64,7 @@ class Test::Unit::TestCase
     end
   end
 
-  def local_validate(xmldata)
+  def local_validate(xmldata, dtd_validate=true)
     catalog_file = "#{@@catalog_path}/catalog"
     if ! File.exists? @@catalog_path
       puts "Creating xml catalog at: #{@@catalog_path}"
@@ -81,7 +81,7 @@ class Test::Unit::TestCase
     tmpfile = Tempfile.new('xmllint')
     tmpfile.write(xmldata)
     tmpfile.close
-    validation_output = `xmllint --catalogs --memory --noout --valid #{tmpfile.path} 2>&1`
+    validation_output = `xmllint --catalogs --memory --noout #{dtd_validate ? '--valid' : ''} #{tmpfile.path} 2>&1`
     ENV.delete("XML_DEBUG_CATALOG")
 
     validation_output.each do |line|
