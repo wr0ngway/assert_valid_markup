@@ -93,7 +93,7 @@ class Test::Unit::TestCase
         if ! File.exists? localdtd
           puts "Adding xml catalog resource\n\tpublic id: '#{pubid}'\n\turi: '#{sysid}'\n\tfile: '#{localdtd}'"
           open(localdtd, "w") {|f| f.write(open(sysid).read())}
-          out = `xmlcatalog --noout --add 'public' '#{pubid}' 'file:/#{localdtd}' '#{catalog_file}' 2>&1`
+          out = `xmlcatalog --noout --add 'public' '#{pubid}' 'file://#{localdtd}' '#{catalog_file}' 2>&1`
           if $? != 0
             puts out
             exit 1
