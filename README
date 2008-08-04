@@ -1,9 +1,15 @@
 = assert_valid_markup plugin for Rails
 
-Validate your (X)HTML against the W3C Validator web service (http://validator.w3.org/)
-from within your functional tests. If anything changes to invalidate your markup, you'll
-know pronto. Responses from the web service are cached, so your tests aren't slowed down
-unless something has changed.
+
+Validate your (X)HTML from within your functional tests. If anything changes to invalidate
+your markup, you'll know pronto.
+
+If xmllinl/xmlcatalog are available in your PATH, this plugin will use them to validate your xml.
+When doing so, it will automatically fetch and cache all DTDs locally so that you don't incur a
+network hit on future runs.
+
+Otherwise, validations will be done using the W3C Validator web service (http://validator.w3.org/).
+Responses from the web service are cached, so your tests aren't slowed down unless something has changed.
 
 == Usage
 
@@ -35,4 +41,5 @@ unless something has changed.
 == Credits
 
 Scott Raymond <sco@scottraymond.net>. Released under the MIT license.
-Latest version: http://redgreenblu.com/svn/projects/assert_valid_markup/
+Matt Conway <matt@conwaysplace.com> (xmllint additions)
+Latest version: http://github.com/wr0ngway/assert_valid_markup

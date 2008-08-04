@@ -1,7 +1,7 @@
 task :default => [:test]
 
 PKG_NAME = "assert_valid_markup"
-PKG_VERSION = "0.1"
+PKG_VERSION = "0.2"
 
 task :docs do
   sh "rdoc lib"
