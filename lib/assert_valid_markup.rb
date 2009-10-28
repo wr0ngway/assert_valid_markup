@@ -103,6 +103,8 @@ class Test::Unit::TestCase
     validation_output = `xmllint --catalogs --memory --noout #{dtd_validate ? '--valid' : ''} #{tmpfile.path} 2>&1`
     ENV.delete("XML_DEBUG_CATALOG")
 
+    added_to_catalog = false
+    last_sysid = ""
     validation_output.each do |line|
       line.chomp!
       if match = line.match(/Resolve: pubID (.*) sysID (.*)/)
@@ -111,17 +113,32 @@ class Test::Unit::TestCase
         localdtd = "#{catalog_path}/#{sysid.split('/').last}"
         if ! File.exists? localdtd
           puts "Adding xml catalog resource\n\tpublic id: '#{pubid}'\n\turi: '#{sysid}'\n\tfile: '#{localdtd}'"
-          open(localdtd, "w") {|f| f.write(open(sysid).read())}
+          if sysid =~ /^file:/
+            basename = sysid.split('/').last
+            dirname = last_sysid.gsub(/\/[^\/]*$/, '')
+            sysid = "#{dirname}/#{basename}"
+            puts "Using sysid relative to parent: #{sysid}"
+          end
+
+          sysid_contents = open(sysid, 'r', 0, 'User-Agent' => 'assert_valid_markup').read()
+          open(localdtd, "w") {|f| f.write(sysid_contents)}
+          added_to_catalog = true
+
           out = `xmlcatalog --noout --add 'public' '#{pubid}' 'file://#{localdtd}' '#{catalog_file}' 2>&1`
           if $? != 0
             puts out
             exit 1
           end
         end
+        last_sysid = sysid
       end
     end
-    validation_failed = validation_output.grep(/^#{Regexp.escape(tmpfile.path)}:/)
-    return validation_failed.collect {|l| l.gsub(/^[^:]*:/, "Invalid markup: line ")}.join("\n")
+    if added_to_catalog
+      return local_validate(xmldata, dtd_validate, catalog_path)
+    else
+      validation_failed = validation_output.grep(/^#{Regexp.escape(tmpfile.path)}:/)
+      return validation_failed.collect {|l| l.gsub(/^[^:]*:/, "Invalid markup: line ")}.join("\n")
+    end
   end
 
   def w3c_validate(fragment, dtd_validate)
