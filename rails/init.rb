@@ -1,0 +1,1 @@
+require 'assert_valid_markup'

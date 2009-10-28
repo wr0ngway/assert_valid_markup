@@ -2,13 +2,19 @@ require 'test/unit'
 require 'net/http'
 require 'digest/md5'
 require 'open-uri'
-require 'FileUtils'
+require 'fileutils'
+require 'tempfile'
+require 'xmlsimple'
+require 'cgi'
 
 class Test::Unit::TestCase
-  
-  @@catalog_path = File.expand_path("~/.xml-catalogs")
-  @@use_local_validation = system("xmllint --version > /dev/null 2>&1")
-  
+
+  @@default_avm_options = {
+      :catalog_path => File.expand_path("~/.xml-catalogs"),
+      :validation_service => system("xmllint --version > /dev/null 2>&1") ? :local : :w3c,
+      :dtd_validate => true
+  }
+
   # Assert that markup (html/xhtml) is valid according the W3C validator web service.
   # By default, it validates the contents of @response.body, which is set after calling
   # one of the get/post/etc helper methods. You can also pass it a string to be validated.
@@ -22,27 +28,15 @@ class Test::Unit::TestCase
   #     assert_valid_markup
   #   end
   #
-  def assert_valid_markup(fragment=@response.body, dtd_validate=true)
-    if  @@use_local_validation
-      result = local_validate(fragment, dtd_validate) 
-      assert result.empty?, result.collect {|l| l.gsub(/^[^:]*:/, "Invalid markup: line ")}.join("\n")
+  def assert_valid_markup(fragment=@response.body, options={})
+    opts = @@default_avm_options.merge(options)
+    result = ''
+    if opts[:validation_service] == :local
+      result = local_validate(fragment, opts[:dtd_validate], opts[:catalog_path])
     else
-      begin
-        filename = File.join Dir::tmpdir, 'markup.' + Digest::MD5.hexdigest(fragment).to_s
-        begin
-          response = File.open filename do |f| Marshal.load(f) end
-      	rescue
-      	  response = Net::HTTP.start('validator.w3.org').post2('/check', "fragment=#{CGI.escape(fragment)}&output=xml")
-          File.open filename, 'w+' do |f| Marshal.dump response, f end
-      	end
-      	markup_is_valid = response['x-w3c-validator-status']=='Valid'
-      	message = markup_is_valid ? '' :  XmlSimple.xml_in(response.body)['messages'][0]['msg'].collect{ |m| "Invalid markup: line #{m['line']}: #{CGI.unescapeHTML(m['content'])}" }.join("\n")
-      	assert markup_is_valid, message
-      rescue SocketError
-        # if we can't reach the validator service, just let the test pass
-        assert true
-      end
+      result = w3c_validate(fragment, opts[:dtd_validate])
     end
+    assert result.empty?, result
   end
   
   # Class-level method to quickly create validation tests for a bunch of actions at once.
@@ -64,11 +58,36 @@ class Test::Unit::TestCase
     end
   end
 
-  def local_validate(xmldata, dtd_validate=true)
-    catalog_file = "#{@@catalog_path}/catalog"
-    if ! File.exists? @@catalog_path
-      puts "Creating xml catalog at: #{@@catalog_path}"
-      FileUtils.mkdir_p(@@catalog_path)
+  # Class-level method to to turn on validation for the response from any successful html request via "get"
+  def self.assert_all_valid_markup
+    self.class_eval do
+      # automatically check markup for all successfull GETs
+      def get_with_assert_valid_markup(*args)
+        get_without_assert_valid_markup(*args)
+        assert_valid_markup if ! @@skip_validation && @request.format.html? && @response.success?
+      end
+      alias_method_chain :get, :assert_valid_markup
+    end
+  end
+
+  @@skip_validation = false
+
+  # Allows one to skip validation for the given block - useful when you use assert_all_valid_markup and need to only
+  # skip validation for a handful of tests
+  def skip_markup_validation
+    begin
+      @@skip_validation = true
+      yield
+    ensure
+      @@skip_validation = false
+    end
+  end
+  
+  def local_validate(xmldata, dtd_validate, catalog_path)
+    catalog_file = "#{catalog_path}/catalog"
+    if ! File.exists? catalog_path
+      puts "Creating xml catalog at: #{catalog_path}"
+      FileUtils.mkdir_p(catalog_path)
       out = `xmlcatalog --noout --create '#{catalog_file}' 2>&1`
       if $? != 0
         puts out
@@ -89,7 +108,7 @@ class Test::Unit::TestCase
       if match = line.match(/Resolve: pubID (.*) sysID (.*)/)
         pubid = match[1]
         sysid = match[2]
-        localdtd = "#{@@catalog_path}/#{sysid.split('/').last}"
+        localdtd = "#{catalog_path}/#{sysid.split('/').last}"
         if ! File.exists? localdtd
           puts "Adding xml catalog resource\n\tpublic id: '#{pubid}'\n\turi: '#{sysid}'\n\tfile: '#{localdtd}'"
           open(localdtd, "w") {|f| f.write(open(sysid).read())}
@@ -102,7 +121,29 @@ class Test::Unit::TestCase
       end
     end
     validation_failed = validation_output.grep(/^#{Regexp.escape(tmpfile.path)}:/)
-    return validation_failed
+    return validation_failed.collect {|l| l.gsub(/^[^:]*:/, "Invalid markup: line ")}.join("\n")
   end
-  
+
+  def w3c_validate(fragment, dtd_validate)
+    validation_result = ''
+    begin
+      filename = File.join Dir::tmpdir, 'markup.' + Digest::MD5.hexdigest(fragment).to_s
+      if ! ENV['NO_CACHE_VALIDATION']
+        response = File.open filename {|f| Marshal.load(f) } unless ENV['NO_CACHE_VALIDATION'] rescue nil
+      end
+      if ! response
+        response = Net::HTTP.start('validator.w3.org').post2('/check', "fragment=#{CGI.escape(fragment)}&output=xml")
+        File.open filename, 'w+' do |f| Marshal.dump response, f end
+      end
+      markup_is_valid = response['x-w3c-validator-status']=='Valid'
+      if ! markup_is_valid
+        doc = XmlSimple.xml_in(response.body)
+        validation_result = doc['messages'][0]['msg'].collect{ |m| "Invalid markup: line #{m['line']}: #{CGI.unescapeHTML(m['content'])}" }.join("\n")
+      end
+    rescue SocketError
+      # if we can't reach the validator service, just let the test pass
+      puts "WARNING: Could not reach w3c validator service"
+    end
+    return validation_result
+  end
 end

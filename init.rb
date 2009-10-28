@@ -1,1 +1,1 @@
-require 'assert_valid_markup' if ENV["RAILS_ENV"] == "test"
+require File.dirname(__FILE__) + "/rails/init"
