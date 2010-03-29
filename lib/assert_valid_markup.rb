@@ -32,7 +32,7 @@ class Test::Unit::TestCase
     opts = @@default_avm_options.merge(options)
 
     # html5 validation is a special case
-    opts[:validation_service] = :w3c if fragment =~ /<!DOCTYPE html>/
+    opts[:validation_service] = :w3c if fragment =~ /\A\s*<!DOCTYPE html>/
 
     result = ''
     if opts[:validation_service] == :local
