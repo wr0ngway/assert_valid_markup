@@ -13,7 +13,7 @@ begin
     gem.add_development_dependency "mocha"
     gem.add_development_dependency "shoulda"
     gem.add_development_dependency "activesupport"
-    gem.add_dependency "xml-simple"
+    gem.add_dependency "json"
     gem.files =  FileList["[A-Z][A-Z]*", "init.rb", "{lib,rails}/**/*"]    
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
   end

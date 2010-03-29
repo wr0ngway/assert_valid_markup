@@ -4,7 +4,7 @@ require 'digest/md5'
 require 'open-uri'
 require 'fileutils'
 require 'tempfile'
-require 'xmlsimple'
+require 'json'
 require 'cgi'
 
 class Test::Unit::TestCase
@@ -30,6 +30,10 @@ class Test::Unit::TestCase
   #
   def assert_valid_markup(fragment=@response.body, options={})
     opts = @@default_avm_options.merge(options)
+
+    # html5 validation is a special case
+    opts[:validation_service] = :w3c if fragment =~ /<!DOCTYPE html>/
+
     result = ''
     if opts[:validation_service] == :local
       result = local_validate(fragment, opts[:dtd_validate], opts[:catalog_path])
@@ -59,12 +63,13 @@ class Test::Unit::TestCase
   end
 
   # Class-level method to to turn on validation for the response from any successful html request via "get"
-  def self.assert_all_valid_markup
+  def self.assert_all_valid_markup(options={})
+    opts = @@default_avm_options.merge(options)
     self.class_eval do
       # automatically check markup for all successfull GETs
-      def get_with_assert_valid_markup(*args)
+      define_method(:get_with_assert_valid_markup) do |*args|
         get_without_assert_valid_markup(*args)
-        assert_valid_markup if ! @@skip_validation && @request.format.html? && @response.success?
+        assert_valid_markup(@response.body, opts) if ! @@skip_validation && @request.format.html? && @response.success?
       end
       alias_method_chain :get, :assert_valid_markup
     end
@@ -142,7 +147,7 @@ class Test::Unit::TestCase
         msg << l.gsub(/^[^:]*:/, "Invalid markup: line ")
         if l =~ /^[^:]*:(\d+)/
           line = $1.to_i
-          ((line - 1)..(line + 1)).each do |ln|
+          ((line - 3)..(line + 3)).each do |ln|
             msg << "\t#{ln}: #{xmldata.lines.to_a[ln-1]}"
           end
         end
@@ -159,13 +164,22 @@ class Test::Unit::TestCase
         response = File.open filename {|f| Marshal.load(f) } unless ENV['NO_CACHE_VALIDATION'] rescue nil
       end
       if ! response
-        response = Net::HTTP.start('validator.w3.org').post2('/check', "fragment=#{CGI.escape(fragment)}&output=xml")
+        response = Net::HTTP.start('validator.w3.org').post2('/check', "fragment=#{CGI.escape(fragment)}&output=json")
         File.open filename, 'w+' do |f| Marshal.dump response, f end
       end
       markup_is_valid = response['x-w3c-validator-status']=='Valid'
       if ! markup_is_valid
-        doc = XmlSimple.xml_in(response.body)
-        validation_result = doc['messages'][0]['msg'].collect{ |m| "Invalid markup: line #{m['line']}: #{CGI.unescapeHTML(m['content'])}" }.join("\n")
+        doc = JSON.parse(response.body)
+        msgs = []
+        doc['messages'].each do |m|
+          line = m['lastLine']
+          msg = "Invalid markup: line #{line}: #{CGI.unescapeHTML(m['message'])}\n"
+          ((line - 3)..(line + 3)).each do |ln|
+            msg << "\t#{ln}: #{fragment.lines.to_a[ln-1]}"
+          end
+          msgs << msg
+        end
+        validation_result = msgs.join("\n")
       end
     rescue SocketError
       # if we can't reach the validator service, just let the test pass
