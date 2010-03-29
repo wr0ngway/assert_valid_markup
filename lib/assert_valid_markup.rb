@@ -100,7 +100,7 @@ class Test::Unit::TestCase
     tmpfile = Tempfile.new('xmllint')
     tmpfile.write(xmldata)
     tmpfile.close
-    validation_output = `xmllint --catalogs --memory --noout #{dtd_validate ? '--valid' : ''} #{tmpfile.path} 2>&1`
+    validation_output = `xmllint --catalogs --memory --noout #{dtd_validate ? '--valid' : ''} #{tmpfile.path} 2>&1`.lines.to_a
     ENV.delete("XML_DEBUG_CATALOG")
 
     added_to_catalog = false
@@ -137,7 +137,17 @@ class Test::Unit::TestCase
       return local_validate(xmldata, dtd_validate, catalog_path)
     else
       validation_failed = validation_output.grep(/^#{Regexp.escape(tmpfile.path)}:/)
-      return validation_failed.collect {|l| l.gsub(/^[^:]*:/, "Invalid markup: line ")}.join("\n")
+      msg = []
+      validation_failed.each do |l|
+        msg << l.gsub(/^[^:]*:/, "Invalid markup: line ")
+        if l =~ /^[^:]*:(\d+)/
+          line = $1.to_i
+          ((line - 1)..(line + 1)).each do |ln|
+            msg << "\t#{ln}: #{xmldata.lines.to_a[ln-1]}"
+          end
+        end
+      end
+      return msg.join("\n")
     end
   end
 
