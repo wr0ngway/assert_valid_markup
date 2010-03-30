@@ -1,0 +1,13 @@
+0.6.4
+-----
+
+changelog <6b5051f> [Matt Conway]
+changelog <ff1a390> [Matt Conway]
+handle FakeWeb <ef3ef69> [Matt Conway]
+gemspec <730c086> [Matt Conway]
+less expensive match for html5 test <bc75a60> [Matt Conway]
+gemspec <cf4e981> [Matt Conway]
+fix for html5, w3c validator now json only <ddfcb2d> [Matt Conway]
+fix for ruby 1.9, output partial doc on validation failure <9ac304e> [Matt Conway]
+
+
