@@ -5,11 +5,11 @@
 
 Gem::Specification.new do |s|
   s.name = %q{assert_valid_markup}
-  s.version = "0.6.2"
+  s.version = "0.6.4"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Matt Conway"]
-  s.date = %q{2010-03-29}
+  s.date = %q{2010-03-30}
   s.description = %q{Also contains some conveniences such as a flag to clear w3c cache at runtime, and some other cleanups}
   s.email = %q{wr0ngway@yahoo.com}
   s.extra_rdoc_files = [
@@ -17,7 +17,8 @@ Gem::Specification.new do |s|
      "README.rdoc"
   ]
   s.files = [
-    "LICENSE",
+    "CHANGELOG",
+     "LICENSE",
      "README.rdoc",
      "VERSION",
      "init.rb",
