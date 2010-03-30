@@ -164,7 +164,17 @@ class Test::Unit::TestCase
         response = File.open filename {|f| Marshal.load(f) } unless ENV['NO_CACHE_VALIDATION'] rescue nil
       end
       if ! response
-        response = Net::HTTP.start('validator.w3.org').post2('/check', "fragment=#{CGI.escape(fragment)}&output=json")
+        if defined?(FakeWeb)
+          old_net_connect = FakeWeb.allow_net_connect?
+          FakeWeb.allow_net_connect = true
+        end
+        begin
+          response = Net::HTTP.start('validator.w3.org').post2('/check', "fragment=#{CGI.escape(fragment)}&output=json")
+        ensure
+          if defined?(FakeWeb)
+            FakeWeb.allow_net_connect = old_net_connect
+          end
+        end
         File.open filename, 'w+' do |f| Marshal.dump response, f end
       end
       markup_is_valid = response['x-w3c-validator-status']=='Valid'
