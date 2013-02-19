@@ -169,7 +169,8 @@ class Test::Unit::TestCase
           FakeWeb.allow_net_connect = true
         end
         begin
-          response = Net::HTTP.start('validator.w3.org').post2('/check', "fragment=#{CGI.escape(fragment)}&output=json")
+          proxy = ENV['http_proxy'] ? URI.parse(ENV['http_proxy']) : OpenStruct.new
+          response = Net::HTTP.Proxy(proxy.host, proxy.port).start('validator.w3.org').post2('/check', "fragment=#{CGI.escape(fragment)}&output=json")
         ensure
           if defined?(FakeWeb)
             FakeWeb.allow_net_connect = old_net_connect
