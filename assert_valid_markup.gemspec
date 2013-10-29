@@ -5,7 +5,7 @@
 
 Gem::Specification.new do |s|
   s.name = %q{assert_valid_markup}
-  s.version = "0.6.5"
+  s.version = "0.8.0"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Matt Conway"]

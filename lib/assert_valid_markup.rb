@@ -7,7 +7,7 @@ require 'tempfile'
 require 'json'
 require 'cgi'
 
-class Test::Unit::TestCase
+class ActiveSupport::TestCase
 
   @@default_avm_options = {
       :catalog_path => File.expand_path("~/.xml-catalogs"),
