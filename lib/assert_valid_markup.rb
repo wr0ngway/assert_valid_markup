@@ -7,7 +7,7 @@ require 'tempfile'
 require 'json'
 require 'cgi'
 
-class Test::Unit::TestCase
+class ActiveSupport::TestCase
 
   @@default_avm_options = {
       :catalog_path => File.expand_path("~/.xml-catalogs"),
@@ -27,6 +27,9 @@ class Test::Unit::TestCase
   #     get :bar
   #     assert_valid_markup
   #   end
+  #
+  # To use a local w3c-validator instance set following environment varibale as following:
+  # ENV['W3C_VALIDATOR_SERVICE']='my-local.server/w3c-validator'
   #
   def assert_valid_markup(fragment=@response.body, options={})
     opts = @@default_avm_options.merge(options)
@@ -157,6 +160,8 @@ class Test::Unit::TestCase
   end
 
   def w3c_validate(fragment, dtd_validate)
+    ENV['W3C_VALIDATOR_SERVICE'] ||= 'validator.w3.org'
+
     validation_result = ''
     begin
       filename = File.join Dir::tmpdir, 'markup.' + Digest::MD5.hexdigest(fragment).to_s
@@ -169,7 +174,8 @@ class Test::Unit::TestCase
           FakeWeb.allow_net_connect = true
         end
         begin
-          response = Net::HTTP.start('validator.w3.org').post2('/check', "fragment=#{CGI.escape(fragment)}&output=json")
+          proxy = ENV['http_proxy'] ? URI.parse(ENV['http_proxy']) : OpenStruct.new
+          response = Net::HTTP.Proxy(proxy.host, proxy.port).start(ENV['W3C_VALIDATOR_SERVICE']).post2('/check', "fragment=#{CGI.escape(fragment)}&output=json")
         ensure
           if defined?(FakeWeb)
             FakeWeb.allow_net_connect = old_net_connect
@@ -198,3 +204,4 @@ class Test::Unit::TestCase
     return validation_result
   end
 end
+
